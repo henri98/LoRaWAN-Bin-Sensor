@@ -34,24 +34,101 @@
 #include <hal/hal.h>
 #include <SPI.h>
 #include <LowPower.h>
+#include <EEPROM.h>
 
 // This EUI must be in little-endian format, so least-significant-byte
 // first. When copying an EUI from ttnctl output, this means to reverse
 // the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
 // 0x70.
 static const u1_t PROGMEM APPEUI[8] = {0xC0, 0x0C, 0x01, 0xD0, 0x7E, 0xD5, 0xB3, 0x70};
-void os_getArtEui(u1_t *buf) { memcpy_P(buf, APPEUI, 8); }
-
-// This should also be in little endian format, see above.
-static const u1_t PROGMEM DEVEUI[8] = {0x53, 0x34, 0x43, 0x45, 0x3F, 0xF3, 0xF3, 0x23};
-void os_getDevEui(u1_t *buf) { memcpy_P(buf, DEVEUI, 8); }
 
 // This key should be in big endian format (or, since it is not really a
 // number but a block of memory, endianness does not really apply). In
 // practice, a key taken from ttnctl can be copied as-is.
-// The key shown here is the semtech default key.
 static const u1_t PROGMEM APPKEY[16] = {0x73, 0x99, 0x8E, 0xFD, 0x71, 0x9C, 0xBB, 0xFE, 0x74, 0xBB, 0xB3, 0x21, 0x0A, 0x22, 0x97, 0x57};
-void os_getDevKey(u1_t *buf) { memcpy_P(buf, APPKEY, 16); }
+
+void os_getArtEui(u1_t *buf)
+{
+    memcpy_P(buf, APPEUI, 8);
+
+    Serial.print("AppEui: ");
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        Serial.print(buf[i], HEX);
+    }
+    Serial.println();
+}
+
+void os_getDevEui(u1_t *buf)
+{
+    bool deveui_generated = true;
+    u1_t deveui[8];
+
+    // Check if DevEui can be found in EEPROM, this is true if the first 16 bits correspond to the 16 bits of the appkey
+    for (uint16_t i = 0; i < 16; i++)
+    {
+        if (EEPROM.read(i) != pgm_read_byte_near(APPKEY + i))
+        {
+            deveui_generated = false;
+        }
+    }
+
+    if (deveui_generated)
+    {
+        // Found DevEui in EEPROM
+        Serial.println("Found DevEui in EEPROM");
+
+        // read the deveui form the eeprom
+        for (uint8_t i = 16; i < 24; i++)
+        {
+            deveui[i - 16] = EEPROM.read(i);
+        }
+    }
+    else
+    {
+        // No DevEui found in EEPROM, generate one and write
+
+        Serial.println("Generating DevEui and writing to EEPROM");
+
+        for (uint8_t i = 0; i < 8; i++)
+        {
+            deveui[i] = random(0, 255);
+        }
+
+        // write APPKEY to eeprom followed by the generated deveui
+
+        for (uint8_t i = 0; i < 16; i++)
+        {
+            EEPROM.write(i, pgm_read_byte_near(APPKEY + i));
+        }
+
+        for (uint8_t i = 16; i < 24; i++)
+        {
+            EEPROM.write(i, deveui[i - 16]);
+        }
+    }
+
+    memcpy(buf, deveui, 8);
+
+    Serial.print("DevEui: ");
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        Serial.print(buf[i], HEX);
+    }
+    Serial.println();
+}
+
+void os_getDevKey(u1_t *buf)
+{
+    memcpy_P(buf, APPKEY, 16);
+
+    Serial.print("DevKey: ");
+    for (uint8_t i = 0; i < 16; i++)
+    {
+        Serial.print(buf[i], HEX);
+    }
+    Serial.println();
+}
 
 static uint8_t payload[20];
 static osjob_t sendjob;
@@ -159,8 +236,9 @@ void onEvent(ev_t ev)
 
         Serial.print("Sleeping ");
         Serial.print(times);
-        Serial.print(" of 8 seconds. Rest: ");
-        Serial.println(rest);
+        Serial.print(" times of 8 seconds. Plus: ");
+        Serial.print(rest);
+        Serial.println(" seconds.");
 
         Serial.flush();
         for (int i = 0; i < times; i++)
@@ -169,8 +247,24 @@ void onEvent(ev_t ev)
             LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
         }
 
+        if (rest >= 4)
+        {
+            LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+            rest = rest - 4;
+        }
+        if (rest >= 2)
+        {
+            LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+            rest = rest - 2;
+        }
+        if (rest >= 1)
+        {
+            LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
+            rest = rest - 1;
+        }
+
         // Schedule next transmission
-        os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(rest), do_send);
+        os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(0), do_send);
         break;
     case EV_LOST_TSYNC:
         Serial.println(F("EV_LOST_TSYNC"));
@@ -198,6 +292,8 @@ void setup()
 {
     Serial.begin(9600);
     Serial.println(F("Starting"));
+
+    randomSeed(analogRead(0));
 
     // LMIC init
     os_init();
