@@ -35,6 +35,8 @@
 #include <SPI.h>
 #include <LowPower.h>
 #include <EEPROM.h>
+#include <Wire.h>
+#include <VL53L0X.h>
 
 // This EUI must be in little-endian format, so least-significant-byte
 // first. When copying an EUI from ttnctl output, this means to reverse
@@ -130,6 +132,8 @@ void os_getDevKey(u1_t *buf)
     Serial.println();
 }
 
+VL53L0X sensor;
+
 static uint8_t payload[20];
 static osjob_t sendjob;
 
@@ -137,7 +141,7 @@ int times, rest;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
-const unsigned TX_INTERVAL = 20; //60 * 15;
+const unsigned TX_INTERVAL = 60; //60 * 15;
 
 // Pin mapping
 const lmic_pinmap lmic_pins = {
@@ -170,8 +174,16 @@ void do_send(osjob_t *j)
         payload[i++] = batteryLevel_mV & 0xFF;
 
         // read sensor
+        uint16_t distance = sensor.readRangeSingleMillimeters();
+
+        Serial.println(distance);
 
         // add sensor value to payload
+        if (!sensor.timeoutOccurred())
+        {
+            payload[i++] = (distance >> 8) & 0xFF;
+            payload[i++] = distance & 0xFF;
+        }
 
         // Prepare upstream data transmission at the next possible time.
         LMIC_setTxData2(1, payload, i, 0);
@@ -231,8 +243,8 @@ void onEvent(ev_t ev)
 
         // enter sleep
 
-        times = TX_INTERVAL / 8;
-        rest = TX_INTERVAL % 8;
+        times = (TX_INTERVAL - 5) / 8;
+        rest = (TX_INTERVAL - 5) % 8;
 
         Serial.print("Sleeping ");
         Serial.print(times);
@@ -264,7 +276,7 @@ void onEvent(ev_t ev)
         }
 
         // Schedule next transmission
-        os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(0), do_send);
+        do_send(&sendjob);
         break;
     case EV_LOST_TSYNC:
         Serial.println(F("EV_LOST_TSYNC"));
@@ -293,7 +305,14 @@ void setup()
     Serial.begin(9600);
     Serial.println(F("Starting"));
 
+    delay(100);
+
+    // set random seed for generating deveui if neccesery
     randomSeed(analogRead(0));
+
+    // setup sensor
+    sensor.init();
+    sensor.setTimeout(500);
 
     // LMIC init
     os_init();
