@@ -19,7 +19,7 @@ Add battery circuit?
 
 ## Software
 
-Scetch can be found in the src folder.
+Sketch can be found in the src folder.
 
 This is a PlatformIO project, so Atom or Visual Studio Code can be used to programm the 328p
 
