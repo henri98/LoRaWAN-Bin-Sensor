@@ -6,9 +6,9 @@
 
 Bin sensor based on arduino pro mini transmitting data using LoRaWAN over a RFM95W transceiver module. The small VL53L0X time-of-flight ranging sensor is used to measure the distance to the waste. A 3.6V 18650 battery is used to power the sensor. 
 
-![](.\img\1535716462895.png)
+![](https://raw.githubusercontent.com/henri98/LoRaWAN-Bin-Sensor/master/img/1535716462895.png)
 
-![](.\img\scheme.png)
+![](https://raw.githubusercontent.com/henri98/LoRaWAN-Bin-Sensor/master\img\scheme.png)
 
 ## Hardware
 
@@ -33,8 +33,8 @@ Future Improvements:
 Disable brown out detection.
 
 
-![](.\img\1535716333198.png)
+![](https://raw.githubusercontent.com/henri98/LoRaWAN-Bin-Sensor/master\img\1535716333198.png)
 
-![](.\img\1535716340736.png)
+![](https://raw.githubusercontent.com/henri98/LoRaWAN-Bin-Sensor/master/\img\1535716340736.png)
 
-![](.\img\1535716366459.png)
+![](https://raw.githubusercontent.com/henri98/LoRaWAN-Bin-Sensor/master\img\1535716366459.png)
