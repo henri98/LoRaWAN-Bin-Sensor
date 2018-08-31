@@ -8,9 +8,9 @@
  * including, but not limited to, copying, modification and redistribution.
  * NO WARRANTY OF ANY KIND IS PROVIDED.
  *
- * This example sends a valid LoRaWAN packet with payload "Hello,
- * world!", using frequency and encryption settings matching those of
- * the The Things Network.
+ * LoRaWAN bin sensor: This pice of software measures the distance to waste and 
+ * sends a valid LoRaWAN packet with the measured distance and the battery 
+ * voltage. 
  *
  * This uses OTAA (Over-the-air activation), where where a DevEUI and
  * application key is configured, which are used in an over-the-air
@@ -141,7 +141,7 @@ int times, rest;
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
-const unsigned TX_INTERVAL = 60; //60 * 15;
+const unsigned TX_INTERVAL = 60 * 15;
 
 // Pin mapping
 const lmic_pinmap lmic_pins = {
